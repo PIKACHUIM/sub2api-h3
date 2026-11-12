@@ -6,11 +6,11 @@ name: Build & Push Image (GHCR)
 on:
   push:
     branches: [main]
+    tags: ['v*']
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
       - 'LICENSE'
-  tags: ['v*']
   workflow_dispatch:
     inputs:
       platforms:
