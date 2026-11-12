@@ -19,5 +19,9 @@ export default {
     origin: 'Media API region',
     china: 'China',
     international: 'International',
+    custom: 'Custom / relay',
+    customOrigin: 'Media API base URL',
+    customOriginHint: 'Use an https URL, optionally with a path prefix (for example https://relay.example.com or https://relay.example.com/minimax). Requests are sent to that URL plus /v2/.... When the outbound allowlist is enabled, add the host to security.url_allowlist.upstream_hosts.',
+    customOriginInvalid: 'Media API base URL must be a full http(s) URL, for example https://relay.example.com',
   },
 }

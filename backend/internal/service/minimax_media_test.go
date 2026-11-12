@@ -72,6 +72,47 @@ func TestMiniMaxMediaExplicitAccountAndOrigin(t *testing.T) {
 	require.Equal(t, "https://api.minimax.cn", origin)
 }
 
+func TestMiniMaxMediaCustomOriginRequiresOptIn(t *testing.T) {
+	a := &Account{Platform: PlatformMiniMax, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "fake"}, Extra: map[string]any{"minimax_media_enabled": true, "minimax_media_base_url": "https://relay.example.com"}}
+	// Without the explicit opt-in a relay origin stays rejected, even when the
+	// single account would otherwise look perfectly usable.
+	_, err := MiniMaxMediaOrigin(a)
+	require.Error(t, err)
+
+	a.Extra["minimax_media_allow_custom_origin"] = true
+	origin, err := MiniMaxMediaOrigin(a)
+	require.NoError(t, err)
+	require.Equal(t, "https://relay.example.com", origin)
+
+	// A path prefix survives, trailing slashes are trimmed, and the result still
+	// composes with the fixed endpoint paths.
+	for _, tc := range []struct{ value, want string }{
+		{"https://relay.example.com/", "https://relay.example.com"},
+		{"https://relay.example.com/minimax/", "https://relay.example.com/minimax"},
+		{"  HTTPS://Relay.Example.com  ", "https://relay.example.com"},
+		{"http://127.0.0.1:8787", "http://127.0.0.1:8787"},
+	} {
+		a.Extra["minimax_media_base_url"] = tc.value
+		origin, err := MiniMaxMediaOrigin(a)
+		require.NoError(t, err, tc.value)
+		require.Equal(t, tc.want, origin, tc.value)
+	}
+
+	// Credentials in the URL, query strings and fragments are refused rather than
+	// silently stripped.
+	for _, value := range []string{"", "relay.example.com", "ftp://relay.example.com", "https://user:pw@relay.example.com", "https://relay.example.com/?a=1", "https://relay.example.com/#x"} {
+		a.Extra["minimax_media_base_url"] = value
+		_, err := MiniMaxMediaOrigin(a)
+		require.Error(t, err, value)
+	}
+
+	// The opt-in does not weaken the credential requirement.
+	a.Extra["minimax_media_base_url"] = "https://relay.example.com"
+	a.Credentials["api_key"] = ""
+	_, err = MiniMaxMediaOrigin(a)
+	require.Error(t, err)
+}
+
 type mediaHTTPStub struct {
 	calls int
 	fn    func(*http.Request) (*http.Response, error)

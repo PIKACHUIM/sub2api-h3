@@ -19,5 +19,9 @@ export default {
     origin: '媒体接口地区',
     china: '国内',
     international: '国际',
+    custom: '自定义 / 中转站',
+    customOrigin: '媒体接口地址',
+    customOriginHint: '填写 https 地址，可带路径前缀（例如 https://relay.example.com 或 https://relay.example.com/minimax）。请求会拼接为「该地址 + /v2/...」。启用出站白名单时需把该域名加入 security.url_allowlist.upstream_hosts。',
+    customOriginInvalid: '媒体接口地址必须是 http(s) 开头的完整地址，例如 https://relay.example.com',
   },
 }

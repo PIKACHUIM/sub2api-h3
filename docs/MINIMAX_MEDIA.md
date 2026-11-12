@@ -15,7 +15,9 @@
 
 图片和视频还需启用分组的生成权限：纯 MiniMax 分组在同一区域勾选「允许当前分组生成图片和视频」；composite 分组沿用现有图片生成区的「允许当前分组生图」开关。关闭此权限不影响语音和音色接口。
 
-账号编辑中启用「MiniMax 媒体」，并选择官方国内 `https://api.minimax.cn` 或国际 `https://api.minimax.io`。凭据必须实际具备对应媒体权限；文本/coding 资格不代表媒体调用已验证。媒体地址不使用文本 Base URL，不允许任意中转站；沿用账号代理且代理失败不回退直连。启用域名白名单时加入所选官方域名。
+账号编辑中启用「MiniMax 媒体」，并选择官方国内 `https://api.minimax.cn`、国际 `https://api.minimax.io`，或「自定义 / 中转站」填写媒体接口地址。凭据必须实际具备对应媒体权限；文本/coding 资格不代表媒体调用已验证。媒体地址默认不使用文本 Base URL：选择官方地区即锁定官方域名，只有显式选择「自定义」时才会写入 `minimax_media_allow_custom_origin: true` 并接受任意 http(s) 地址（可带路径前缀，请求拼成「该地址 + `/v2/...`」）。自定义地址不得携带用户名密码、查询串或片段，末尾斜杠会被去掉；协议与出站白名单仍由 `security.url_allowlist` 校验，启用白名单时必须把该域名加入 `upstream_hosts`。媒体请求沿用账号代理，代理失败不回退直连。
+
+中转站只要兼容 MiniMax v2 媒体协议（`/v1/t2a_v2`、`/v1/image_generation`、`/v2/video_generation`、`/v2/query/video_generation`）即可接入；模型名、分辨率、时长仍按上表严格校验，中转站必须接受这些原生模型名。返回的 `content.url` 会原样透传给调用方，若该地址需要鉴权，调用方需自行带上凭据。
 
 ## 接口范围
 

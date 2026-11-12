@@ -74,20 +74,53 @@ func (s *MiniMaxMediaService) AcquireUser(ctx context.Context, id int64, limit i
 	return s.gateway.concurrencyService.AcquireUserSlot(ctx, id, limit)
 }
 
+// miniMaxOfficialMediaOrigins is the closed default set. Anything else must be
+// opted in per account with minimax_media_allow_custom_origin, so a typo (or a
+// hijacked account record) can never silently reroute paid media traffic.
+var miniMaxOfficialMediaOrigins = map[string]bool{
+	"https://api.minimax.cn": true,
+	"https://api.minimax.io": true,
+}
+
 func MiniMaxMediaOrigin(a *Account) (string, error) {
 	enabled, _ := a.Extra["minimax_media_enabled"].(bool)
 	if a.Platform != PlatformMiniMax || a.Type != AccountTypeAPIKey || !enabled {
 		return "", errors.New("MiniMax media requires an explicitly enabled MiniMax API key account")
 	}
-	origin, _ := a.Extra["minimax_media_base_url"].(string)
-	origin = strings.TrimRight(strings.TrimSpace(origin), "/")
-	if origin != "https://api.minimax.cn" && origin != "https://api.minimax.io" {
-		return "", errors.New("MiniMax media base URL must be https://api.minimax.cn or https://api.minimax.io")
-	}
 	if a.GetCredential("api_key") == "" {
 		return "", errors.New("MiniMax media credential is missing")
 	}
-	return origin, nil
+	origin, _ := a.Extra["minimax_media_base_url"].(string)
+	origin = strings.TrimRight(strings.TrimSpace(origin), "/")
+	if miniMaxOfficialMediaOrigins[origin] {
+		return origin, nil
+	}
+	if allowed, _ := a.Extra["minimax_media_allow_custom_origin"].(bool); !allowed {
+		return "", errors.New("MiniMax media base URL must be https://api.minimax.cn or https://api.minimax.io")
+	}
+	return normalizeMiniMaxMediaOrigin(origin)
+}
+
+// normalizeMiniMaxMediaOrigin accepts an operator-supplied origin, optionally
+// with a path prefix, and drops nothing silently: a query, fragment or userinfo
+// would otherwise be smuggled into the outbound URL built as origin+path.
+func normalizeMiniMaxMediaOrigin(raw string) (string, error) {
+	if raw == "" {
+		return "", errors.New("MiniMax media base URL is empty")
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Opaque != "" {
+		return "", errors.New("MiniMax media base URL is invalid")
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return "", errors.New("MiniMax media base URL must use http or https")
+	}
+	if u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return "", errors.New("MiniMax media base URL must be a bare origin")
+	}
+	// Hosts are case-insensitive; lowercasing keeps one account from being
+	// scheduled under two spellings of the same upstream.
+	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host) + strings.TrimRight(u.EscapedPath(), "/"), nil
 }
 func (s *MiniMaxMediaService) Select(ctx context.Context, groupID int64) (*Account, func(), error) {
 	return s.selectAccount(ctx, groupID, 0)
